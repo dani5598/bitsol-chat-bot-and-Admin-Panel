@@ -1,0 +1,68 @@
+# =============================================================================
+#  BITSOL AI Assistant — Local / Production compose stack
+#  Designed & Developed by BITSOL MARKETING
+#
+#  Usage:
+#    cp .env.example .env   # then edit secrets
+#    docker compose up -d --build
+#    docker compose exec web npx prisma migrate deploy
+#    docker compose exec web npm run db:seed
+# =============================================================================
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: bitsol-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-bitsol}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bitsol_password}
+      POSTGRES_DB: ${POSTGRES_DB:-bitsol_assistant}
+    volumes:
+      - bitsol_pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bitsol}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: bitsol-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - bitsol_redisdata:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bitsol-web
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-bitsol}:${POSTGRES_PASSWORD:-bitsol_password}@db:5432/${POSTGRES_DB:-bitsol_assistant}?schema=public
+      REDIS_URL: redis://redis:6379
+    env_file:
+      - .env
+    ports:
+      - "3000:3000"
+
+volumes:
+  bitsol_pgdata:
+  bitsol_redisdata:

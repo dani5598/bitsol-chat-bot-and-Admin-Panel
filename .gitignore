@@ -1,0 +1,43 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# next.js
+/.next/
+/out/
+next-env.d.ts
+
+# production
+/build
+
+# prisma
+/prisma/migrations/dev.db*
+
+# env
+.env
+.env*.local
+!.env.example
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# editor / os
+.DS_Store
+.idea
+.vscode/*
+!.vscode/extensions.json
+*.pem
+
+# testing
+/coverage
+
+# misc
+.turbo
+.vercel
+tsconfig.tsbuildinfo
+.claude/
+
