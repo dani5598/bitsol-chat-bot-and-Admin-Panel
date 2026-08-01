@@ -726,6 +726,53 @@ export const INSTITUTE_COURSES: CourseItem[] = [
       "tiktok selling", "online selling",
     ],
   },
+
+  {
+    slug: "psx-stock-trading",
+    name: "PSX Stock Trading Mastery",
+    group: "Business & Career",
+    tagline: "Understand the Pakistan Stock Exchange before you risk a rupee in it.",
+    overview:
+      "A disciplined, practical introduction to investing and trading on the Pakistan Stock Exchange. You learn how the market actually works, how to read a company's financials, how to analyse charts, and — most importantly — how to manage risk. The emphasis throughout is on process and capital preservation rather than tips and predictions.",
+    curriculum: [
+      "How the PSX works — participants, sessions, settlement and the KSE-100",
+      "Opening a CDC sub-account and choosing a broker",
+      "Order types, spreads, circuit breakers and market mechanics",
+      "Reading financial statements: profit & loss, balance sheet, cash flow",
+      "Fundamental analysis — P/E, book value, dividend yield, sector comparison",
+      "Technical analysis — trend, support and resistance, volume, indicators",
+      "Building a thesis and writing it down before entering a trade",
+      "Risk management — position sizing, stop losses, and what you can afford to lose",
+      "Portfolio construction and diversification across sectors",
+      "Trading psychology: discipline, and why most retail accounts lose money",
+      "Taxation, CGT and regulatory basics for Pakistani investors",
+      "Paper-trading lab — a full simulated portfolio, reviewed weekly",
+    ],
+    duration: "2 months · 3 classes per week · 2 hours per class",
+    fee: { startingAt: "From PKR 35,000", model: "Full course fee", note: FEE_NOTE },
+    instalments: SHORT_INSTALMENTS,
+    trainer: "Active PSX market participant with hands-on trading experience",
+    careers: [
+      "Self-directed investor",
+      "Equity research assistant",
+      "Brokerage house trainee",
+      "Financial content creator",
+      "Personal portfolio manager",
+    ],
+    projects: [
+      "Full fundamental analysis of a listed PSX company",
+      "Simulated portfolio traded and journalled over the course",
+      "Written investment thesis with entry, exit and risk limits",
+    ],
+    certification: "BITSOL Institute Certificate in Stock Market Investing",
+    eligibility:
+      "Matric or above · basic numeracy · this is an education course, not investment advice",
+    keywords: [
+      "psx", "stock", "stocks", "stock market", "trading", "share market",
+      "shares", "invest", "investing", "investment", "kse", "kse 100",
+      "equity", "broker", "cdc", "portfolio", "stock trading",
+    ],
+  },
 ];
 
 /** Groups used by the menu panel and courses landing section. */

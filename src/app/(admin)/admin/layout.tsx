@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { AdminShell } from "@/components/admin/AdminShell";
-import { visibleNav } from "@/components/admin/nav";
 import { requireAdmin } from "@/lib/session";
 import { loadPermissions, navCounts, sessionDepartment } from "@/lib/admin/queries";
 import type { Department } from "@/lib/brands";
@@ -27,7 +26,6 @@ export default async function AdminLayout({
   ]);
 
   const department = sessionDepartment(session);
-  const groups = visibleNav(department as Department | null, permissions);
 
   return (
     <AdminShell
@@ -36,7 +34,9 @@ export default async function AdminLayout({
         role: session.role,
         department: department as Department | null,
       }}
-      groups={groups}
+      // Only serializable values cross into the client component — the nav
+      // tree is built there, since each item carries a Lucide icon function.
+      permissions={permissions ? [...permissions] : null}
       badges={badges}
     >
       {children}

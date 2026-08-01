@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Bot, LogOut, Menu, X } from "lucide-react";
-import { visibleNav, type NavGroup } from "./nav";
+import { visibleNav } from "./nav";
 import { BRANDING } from "@/lib/branding";
 import { BRANDS, type Department } from "@/lib/brands";
 import { cn } from "@/lib/utils";
@@ -24,23 +24,32 @@ export interface NavBadges {
 /**
  * Admin console shell — sidebar, mobile drawer and top bar.
  *
- * Navigation is filtered server-side by department and permissions and passed
- * in as `groups`, so this component never has to decide who may see what.
+ * The nav tree is built HERE rather than in the server layout, because each
+ * item carries a Lucide `icon` — a function, which React cannot serialize
+ * across the server/client boundary. The server passes only the two
+ * serializable inputs the filter needs (`department` and the granted
+ * `permissions`), and the icons never leave the client bundle.
  */
 export function AdminShell({
   user,
-  groups,
+  permissions,
   badges,
   children,
 }: {
   user: AdminUser;
-  groups: NavGroup[];
+  /** Granted permission keys, or null for unrestricted (admin/super-admin). */
+  permissions: string[] | null;
   badges: NavBadges;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+
+  const groups = visibleNav(
+    user.department,
+    permissions ? new Set(permissions) : null
+  );
 
   const scope = user.department ? BRANDS[user.department].shortName : "All businesses";
 

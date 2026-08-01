@@ -23,7 +23,13 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  // Pooled connection (PgBouncer) — used by the running application, which
+  // opens and closes many short-lived connections.
   url      = env("DATABASE_URL")
+  // Direct, unpooled connection — required for migrations, which need session
+  // state that a transaction-mode pooler does not preserve. Falls back to
+  // DATABASE_URL when unset, so a plain non-pooled setup still works.
+  directUrl = env("DIRECT_DATABASE_URL")
 }
 
 // ---------------------------------------------------------------- Enums -----
