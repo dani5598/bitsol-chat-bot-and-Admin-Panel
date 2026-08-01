@@ -403,7 +403,26 @@ async function say(
     await prisma.whatsappContact
       .update({ where: { waId: context.waId }, data: { lastOutboundAt: new Date() } })
       .catch(() => {});
+    return;
   }
+
+  // A failed send is the one failure mode that is completely invisible from the
+  // outside: the customer simply gets no reply, while the transcript in the
+  // console shows the assistant answering perfectly. Recording it makes the
+  // difference between "the bot is broken" and a specific, fixable cause —
+  // an expired token, a blocked outbound connection, a rejected message.
+  await logEvent({
+    level: "ERROR",
+    action: "whatsapp.send.failed",
+    department: context.department,
+    entity: "WhatsappContact",
+    entityId: context.waId,
+    message: result.error ?? "Unknown error sending to the WhatsApp Cloud API.",
+    metadata: {
+      to: context.phone,
+      shape: options?.list ? "list" : options?.buttons?.length ? "buttons" : "text",
+    },
+  });
 }
 
 async function sendMenu(context: Context): Promise<void> {

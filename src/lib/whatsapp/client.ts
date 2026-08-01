@@ -47,8 +47,10 @@ async function post(payload: Record<string, unknown>): Promise<SendResult> {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ messaging_product: "whatsapp", ...payload }),
-      // A hung Graph call must not hold the webhook open past Meta's timeout.
-      signal: AbortSignal.timeout(10_000),
+      // A hung Graph call must not hold the webhook open indefinitely. 15s is
+      // generous for a shared host with slow outbound networking, and still
+      // well inside the window Meta allows before it retries the delivery.
+      signal: AbortSignal.timeout(15_000),
     });
 
     const body = (await response.json().catch(() => null)) as
@@ -63,7 +65,17 @@ async function post(payload: Record<string, unknown>): Promise<SendResult> {
 
     return { ok: true, messageId: body?.messages?.[0]?.id };
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const raw = error instanceof Error ? error.message : String(error);
+    // `fetch failed` on its own sends people hunting for a bad token. On shared
+    // hosting it almost always means the box cannot open an outbound
+    // connection to graph.facebook.com, which is a hosting question, not a
+    // credentials one — so say that here rather than in a support thread.
+    const message =
+      raw === "fetch failed" || /ENOTFOUND|ECONNREFUSED|EAI_AGAIN/.test(raw)
+        ? `Could not reach graph.facebook.com (${raw}). The server may be blocking outbound HTTPS.`
+        : /timed? ?out|aborted/i.test(raw)
+          ? `Timed out reaching graph.facebook.com after 15s (${raw}).`
+          : raw;
     console.error("[whatsapp] send error:", message);
     return { ok: false, error: message };
   }
