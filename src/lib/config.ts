@@ -88,16 +88,39 @@ const schema = z.object({
 
 const parsed = schema.safeParse(process.env);
 
+/**
+ * `next build` imports every route module to collect its metadata, so anything
+ * this file throws happens *during the build* — and Next reports it by falling
+ * back to the pages-router error document, i.e. the notoriously misleading
+ * "<Html> should not be imported outside of pages/_document" while prerendering
+ * /404. The real cause (one bad environment variable) never appears in the log.
+ *
+ * A build must not depend on runtime configuration being present or correct:
+ * on shared hosting the panel's variables are frequently applied to the running
+ * app but not to the build shell. So during a build we log loudly and fall back
+ * to the schema defaults; at runtime, where a misconfiguration is a genuine
+ * problem, we still refuse to start.
+ */
+const isBuildPhase =
+  process.env.NEXT_PHASE === "phase-production-build" ||
+  process.env.NEXT_PHASE === "phase-development-server";
+
 if (!parsed.success) {
-  // Surface a clear message rather than a cryptic runtime failure later.
-  console.error(
-    "Invalid environment configuration:",
-    parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`)
+  const issues = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`);
+  console.error("Invalid environment configuration:", issues);
+
+  if (!isBuildPhase) {
+    throw new Error("Invalid environment configuration. See logs above.");
+  }
+  console.warn(
+    "[config] Continuing the build with default values. Fix these variables " +
+      "before the app is started, or it will refuse to boot."
   );
-  throw new Error("Invalid environment configuration. See logs above.");
 }
 
-const env = parsed.data;
+// Re-parse against an empty object so the defaults apply, rather than carrying
+// the invalid values forward. Only reached during a build.
+const env = parsed.success ? parsed.data : schema.parse({ NODE_ENV: "production" });
 
 export const config = {
   env: env.NODE_ENV,

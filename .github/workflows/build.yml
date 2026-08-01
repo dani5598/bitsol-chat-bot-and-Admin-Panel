@@ -1,0 +1,40 @@
+name: Build
+
+# Proves the app builds from a clean checkout on Linux with no environment
+# configured — which is the fastest way to tell a genuine code failure apart
+# from a host-specific one. If this is green and the shared host still fails,
+# the fault is the host (almost always build memory), not the repository.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # Deliberately no secrets: the build must not depend on runtime
+      # configuration. DATABASE_URL and the AI keys are read when the server
+      # starts, never while compiling — if that stops being true, this fails.
+      - name: Build
+        run: npm run build
+
+      - name: Report output size
+        if: success()
+        run: du -sh .next 2>/dev/null || true

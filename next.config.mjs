@@ -1,9 +1,32 @@
+/**
+ * Shared hosting gives the build very little memory. Next parallelises page
+ * generation across one worker per CPU, and each worker holds its own copy of
+ * the compiler — which is what gets a build OOM-killed on a Hostinger Business
+ * plan. A killed worker is not reported as "out of memory": Next falls back to
+ * the pages-router error document and fails with "<Html> should not be imported
+ * outside of pages/_document" while prerendering /404, which sends you looking
+ * for an import that does not exist.
+ *
+ * Set LOW_MEMORY_BUILD=1 on such a host to serialise the build instead. It is
+ * slower and it is not the default, because CI and VPS builds should stay fast.
+ */
+const lowMemory = /^(1|true|yes)$/i.test(process.env.LOW_MEMORY_BUILD ?? "");
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
   // Standalone output produces a lean, self-contained server for Docker.
   output: "standalone",
   poweredByHeader: false,
+  ...(lowMemory
+    ? {
+        experimental: {
+          // One page-generation worker, in-process, instead of one per core.
+          cpus: 1,
+          workerThreads: false,
+        },
+      }
+    : {}),
   // Keep server-only packages out of the client/edge bundle (Next 15 top-level key).
   serverExternalPackages: ["@prisma/client", "@anthropic-ai/sdk", "ioredis"],
   async rewrites() {

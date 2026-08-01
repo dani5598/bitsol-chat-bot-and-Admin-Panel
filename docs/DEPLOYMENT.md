@@ -187,8 +187,19 @@ ai.bitsolmarketing.com
    committed file. At minimum: `DATABASE_URL`, `JWT_SECRET`, `AI_PROVIDER`,
    the matching API key, `AI_MODEL`, `APP_URL`, `NEXT_PUBLIC_APP_URL`.
 4. **Build.** Run `npm ci && npx prisma generate && npm run build` in the app's
-   shell. If the build is killed for memory (shared plans are tight), build in
-   CI instead and deploy the output — see the note below.
+   shell. Shared plans are tight on memory, so set this first:
+
+   ```bash
+   export LOW_MEMORY_BUILD=1
+   export NODE_OPTIONS=--max-old-space-size=2048
+   npm ci && npm run build
+   ```
+
+   `LOW_MEMORY_BUILD=1` makes Next generate pages in a single in-process worker
+   instead of one per CPU. It is slower, but each worker otherwise holds its own
+   copy of the compiler, and that is what exhausts the memory allowance.
+
+   If it still dies, build in CI and deploy the output — see the note below.
 5. **Migrate and seed**, once, from the app shell:
    ```bash
    npx prisma migrate deploy
@@ -198,10 +209,29 @@ ai.bitsolmarketing.com
 
 ### Known constraints
 
+### Debugging a failed build
+
+> **`<Html> should not be imported outside of pages/_document`**
+>
+> This does **not** mean a page imports `<Html>` — this project imports
+> `next/document` nowhere, and `src/app/not-found.tsx` and `global-error.tsx`
+> exist specifically to prevent the fallback that produces it.
+>
+> It is Next's *masking* error: something else crashed in the build worker, so
+> Next fell back to the pages-router error document to report it while
+> prerendering `/404`. **The real failure is in the lines above it.** On shared
+> hosting it is almost always the build being OOM-killed — set
+> `LOW_MEMORY_BUILD=1` as in step 4.
+>
+> Confirm whether the fault is the code or the host by checking the **Build**
+> workflow on GitHub Actions: it runs `npm ci && npm run build` on a clean
+> Linux/Node 20 checkout with no environment configured. Green there plus red
+> on the host means the host is the problem.
+
 | Constraint | Impact | Mitigation |
 | --- | --- | --- |
 | No PostgreSQL | Cannot host the DB locally | External Neon/Supabase (above) |
-| Limited build memory | `next build` may be OOM-killed | Build in GitHub Actions, deploy `.next` + `node_modules` |
+| Limited build memory | `next build` OOM-killed, reported as the `<Html>` error | `LOW_MEMORY_BUILD=1`; else build in GitHub Actions and deploy `.next` + `node_modules` |
 | No Redis | Rate limiting fails open — every request allowed | Upstash free tier, or accept it and monitor `/admin/logs` |
 | Shared CPU | Slower cold responses under load | Move to a VPS if response times degrade |
 | Process restarts | In-memory state is lost | None needed — the app keeps no in-memory state |
