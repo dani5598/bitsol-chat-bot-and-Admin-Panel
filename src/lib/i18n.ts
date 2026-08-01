@@ -109,11 +109,27 @@ const ROMAN_URDU_MARKERS = [
   "course ka", "kaam", "sikhna", "seekhna", "paisa", "rupay", "waqt",
 ];
 
-/** Roman-script tokens that lean Punjabi rather than Urdu. */
+/**
+ * Roman-script tokens that lean Punjabi rather than Urdu.
+ *
+ * Includes the full verb paradigm (karda/kardi/karde/karan) and the Punjabi
+ * question words, because a single form is rarely enough: "tusi kihda kam
+ * karde ho" only hits `tusi` if `karde` and `kihda` are missing, which drops
+ * it below the two-marker threshold and misclassifies it as English.
+ */
 const ROMAN_PUNJABI_MARKERS = [
-  "tusi", "tuhada", "tuhanu", "asi", "sanu", "kiddan", "ki haal", "changa",
-  "wadhiya", "vadhiya", "menu ", "mainu", "dasso", "dasso ji", "kinna",
-  "kinni", "gall", "naal", "hunda", "hundi", "karda", "kardi", "sohna",
+  // Pronouns
+  "tusi", "tussi", "tuhada", "tuhadi", "tuhanu", "asi", "assi", "sanu",
+  "menu ", "mainu", "ohna", "ohde",
+  // Question words
+  "kiddan", "kidan", "kihda", "kehda", "kihdi", "kine", "kinna", "kinni",
+  "ki haal", "ki gall", "kyu ji",
+  // Verbs — Punjabi conjugations
+  "karda", "kardi", "karde", "karan", "hunda", "hundi", "hunde",
+  "gaya si", "aaya si", "dasso", "dasso ji", "dassan",
+  // Common vocabulary
+  "changa", "wadhiya", "vadhiya", "sohna", "sohni", "gall", "gallan",
+  "naal", "labhna", "chahida", "bilkul ji",
 ];
 
 /**
