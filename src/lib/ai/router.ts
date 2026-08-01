@@ -72,6 +72,43 @@ const MARKETING_SIGNALS: Array<[string, number]> = [
   ["ui ux", 2], ["corporate training", 3], ["portfolio", 2],
   ["client", 1], ["invoice", 2], ["billing", 2], ["support ticket", 2],
   ["roi", 2], ["leads", 2], ["sales", 1], ["crm", 1],
+
+  // --- Urdu / Punjabi script -------------------------------------------------
+  // Without these, an Urdu-script message scores zero against both lists and
+  // the assistant asks "which business?" on every single turn — even when the
+  // user has plainly said "I need a website for my company".
+  //
+  // Deliberately omitted: bare مارکیٹنگ ("marketing"). It is the company name
+  // AND a course subject, so on its own it is noise. Same discipline as the
+  // Latin list, which uses "digital marketing service" rather than "marketing".
+  ["ویب سائٹ", 3],        // website
+  ["ویب سایٹ", 3],        // website (common spelling variant)
+  ["کاروبار", 3],         // business
+  ["کمپنی", 2],           // company
+  ["خدمات", 2],           // services
+  ["سروس", 2],            // service
+  ["بنوانا", 3],          // to get (something) made
+  ["بنوانی", 3],
+  ["بنوانے", 3],
+  ["بنوا", 2],
+  ["چیٹ بوٹ", 3],         // chatbot
+  ["چیٹ بوٹس", 3],
+  ["آٹومیشن", 3],         // automation
+  ["سافٹ ویئر", 3],       // software
+  ["موبائل ایپ", 3],      // mobile app
+  ["ایپلیکیشن", 2],       // application
+  ["برانڈنگ", 2],         // branding
+  ["لوگو", 2],            // logo
+  ["ڈیزائن کروانا", 3],   // to get designed
+  ["اشتہار", 2],          // advertisement
+  ["اشتہارات", 2],
+  ["کوٹیشن", 3],          // quotation
+  ["تخمینہ", 3],          // estimate
+  ["قیمت", 2],            // price (of a service — fees use فیس)
+  ["ریٹ", 2],             // rate
+  ["مشاورت", 3],          // consultation
+  ["میٹنگ", 2],           // meeting
+  ["کلائنٹ", 2],          // client
 ];
 
 const INSTITUTE_SIGNALS: Array<[string, number]> = [
@@ -92,6 +129,47 @@ const INSTITUTE_SIGNALS: Array<[string, number]> = [
   ["which course", 3], ["freelancing course", 3], ["prospectus", 3],
   ["eligibility", 2], ["curriculum", 2], ["syllabus", 3],
   ["admission officer", 3], ["campus", 2],
+
+  // --- Urdu / Punjabi script -------------------------------------------------
+  // کورس is weighted decisively so "ڈیجیٹل مارکیٹنگ کورس" (digital marketing
+  // course) routes to the Institute rather than being pulled towards Marketing
+  // by the word "marketing" sitting next to it.
+  ["کورس", 3],            // course
+  ["کورسز", 3],           // courses
+  ["کورسز", 3],
+  ["داخلہ", 3],           // admission
+  ["داخلے", 3],           // admissions
+  ["ایڈمیشن", 3],         // admission (transliterated)
+  ["فیس", 3],             // fee
+  ["فیسیں", 3],
+  ["قسط", 2],             // instalment
+  ["اقساط", 2],           // instalments
+  ["وظیفہ", 3],           // scholarship
+  ["اسکالرشپ", 3],        // scholarship (transliterated)
+  ["کلاس", 2],            // class
+  ["کلاسز", 2],           // classes
+  ["بیچ", 3],             // batch
+  ["سیکھنا", 3],          // to learn
+  ["سیکھنی", 3],
+  ["سیکھنے", 3],
+  ["پڑھنا", 3],           // to study
+  ["پڑھائی", 3],          // studies
+  ["تعلیم", 2],           // education
+  ["طالب علم", 3],        // student
+  ["طلبہ", 3],            // students
+  ["انسٹی ٹیوٹ", 3],      // institute
+  ["ادارہ", 2],           // institution
+  ["سرٹیفکیٹ", 3],        // certificate
+  ["ڈپلومہ", 3],          // diploma
+  ["استاد", 2],           // teacher
+  ["ٹرینر", 2],           // trainer
+  ["ٹائم ٹیبل", 3],       // timetable
+  ["اوقات", 2],           // timings
+  ["حاضری", 3],           // attendance
+  ["امتحان", 2],          // exam
+  ["نتیجہ", 2],           // result
+  ["فری لانسنگ", 3],      // freelancing
+  ["تربیت", 2],           // training
 ];
 
 /**
