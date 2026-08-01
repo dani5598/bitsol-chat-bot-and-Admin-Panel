@@ -128,6 +128,68 @@ sudo certbot --nginx -d your-domain.com
 
 ---
 
+## 4b. Hostinger Business (shared hosting + Node.js)
+
+Hostinger Business supports Node.js apps (up to 5) and can deploy straight from
+GitHub — but **its shared plans do not offer PostgreSQL**, only MySQL. Postgres
+is VPS-only.
+
+Do **not** convert the schema to MySQL to work around this. Eleven fields are
+`String[]` scalar lists (`keywords`, `benefits`, `features`, `process`,
+`curriculum`, `careers`, `projects`, `expertise`, `tags`, `variables`), and
+Prisma does not support scalar lists on MySQL. Converting means JSON columns or
+eleven join tables, plus rewriting the seed and every query that reads them.
+
+Use an **external managed Postgres** instead — the app connects over TLS and
+neither knows nor cares where the database lives.
+
+### Architecture
+
+```
+ai.bitsolmarketing.com
+   ├── App    →  Hostinger Business · Node.js app (GitHub deploy)
+   ├── DB     →  Neon / Supabase free tier (external Postgres over TLS)
+   └── Redis  →  optional; Upstash, or omit and rate limiting fails open
+```
+
+### Steps
+
+1. **hPanel → Websites → Subdomain** — create `ai.bitsolmarketing.com`.
+2. **hPanel → Advanced → Node.js** — create an app:
+   - Node version **20+**
+   - Application root: the subdomain's directory
+   - Startup file: `node_modules/next/dist/bin/next` with args `start`
+     (or `npm start`)
+   - Connect the GitHub repository and select branch `main`
+3. **Environment variables** — set them in the Node.js app panel, not in a
+   committed file. At minimum: `DATABASE_URL`, `JWT_SECRET`, `AI_PROVIDER`,
+   the matching API key, `AI_MODEL`, `APP_URL`, `NEXT_PUBLIC_APP_URL`.
+4. **Build.** Run `npm ci && npx prisma generate && npm run build` in the app's
+   shell. If the build is killed for memory (shared plans are tight), build in
+   CI instead and deploy the output — see the note below.
+5. **Migrate and seed**, once, from the app shell:
+   ```bash
+   npx prisma migrate deploy
+   npm run db:seed
+   ```
+6. **TLS** — enable the free SSL certificate for the subdomain in hPanel.
+
+### Known constraints
+
+| Constraint | Impact | Mitigation |
+| --- | --- | --- |
+| No PostgreSQL | Cannot host the DB locally | External Neon/Supabase (above) |
+| Limited build memory | `next build` may be OOM-killed | Build in GitHub Actions, deploy `.next` + `node_modules` |
+| No Redis | Rate limiting fails open — every request allowed | Upstash free tier, or accept it and monitor `/admin/logs` |
+| Shared CPU | Slower cold responses under load | Move to a VPS if response times degrade |
+| Process restarts | In-memory state is lost | None needed — the app keeps no in-memory state |
+
+If more than one of these bites, move to a **Hostinger VPS** (KVM 1 is enough)
+and use the Docker Compose path in section 3 — same provider and billing, and
+`docker-compose.yml` already provisions Postgres and Redis.
+
+---
+
 ## 5. Alternative — bare metal with PM2
 
 ```bash
