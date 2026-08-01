@@ -126,6 +126,28 @@ sudo certbot --nginx -d your-domain.com
 > `X-Forwarded-For` must be passed through: rate limiting and audit logs
 > identify clients by it.
 
+### WhatsApp webhook behind the proxy
+
+The `location /` block above already serves `/webhook` — no extra nginx rule is
+needed. Two things must not be interfered with:
+
+- **The request body must arrive byte-for-byte.** The `X-Hub-Signature-256`
+  check is an HMAC over the raw bytes, so any module that rewrites, re-encodes
+  or pretty-prints JSON bodies will make every delivery fail with `401`.
+- **The `X-Hub-Signature-256` header must reach the app.** nginx forwards it by
+  default; a `proxy_set_header` block that whitelists headers must include it.
+
+Meta requires a publicly resolvable HTTPS endpoint with a valid certificate —
+finish `certbot` before registering the callback URL, or verification fails.
+
+Verify the endpoint is reachable before touching the Meta console:
+
+```bash
+curl "https://your-domain.com/webhook?hub.mode=subscribe\
+&hub.verify_token=$WHATSAPP_VERIFY_TOKEN&hub.challenge=ping"
+# → ping
+```
+
 ---
 
 ## 4b. Hostinger Business (shared hosting + Node.js)

@@ -255,6 +255,81 @@ Adds a note, follow-up or reminder to a CRM record's timeline.
 
 ---
 
+## `/webhook` — WhatsApp Cloud API
+
+Called by Meta, not by your front end. Register it at
+**Meta ▸ WhatsApp ▸ Configuration ▸ Webhook** and subscribe to `messages`.
+
+`/webhook` is the public callback path; it is rewritten to
+`/api/whatsapp/webhook` in `next.config.mjs`, and both answer identically. It is
+a rewrite rather than a redirect because Meta does not follow 3xx responses when
+delivering a webhook.
+
+### GET — subscription handshake
+
+Meta calls this once when you save the webhook.
+
+| Query param        | Meaning                                        |
+| ------------------ | ---------------------------------------------- |
+| `hub.mode`         | Always `subscribe`                             |
+| `hub.verify_token` | Must equal `WHATSAPP_VERIFY_TOKEN`             |
+| `hub.challenge`    | Echoed back verbatim as `text/plain` on success |
+
+`200` challenge echoed · `403` token mismatch · `500` `WHATSAPP_VERIFY_TOKEN` unset.
+
+### POST — inbound messages and delivery receipts
+
+Every request must carry a valid `X-Hub-Signature-256` header — an HMAC-SHA256
+of the **raw** body keyed with `WHATSAPP_APP_SECRET`. Unsigned or mis-signed
+requests are rejected with `401` and logged as `whatsapp.webhook.rejected`.
+
+```jsonc
+{
+  "object": "whatsapp_business_account",
+  "entry": [{
+    "changes": [{
+      "field": "messages",
+      "value": {
+        "metadata": { "phone_number_id": "…" },
+        "contacts": [{ "wa_id": "923001234567", "profile": { "name": "Ali" } }],
+        "messages": [{
+          "id": "wamid.HBgM…",
+          "from": "923001234567",
+          "timestamp": "1785000000",
+          "type": "text",
+          "text": { "body": "mujhe SEO course ki fees chahiye" }
+        }]
+      }
+    }]
+  }]
+}
+```
+
+Handled message types: `text`, `interactive` (button and list replies),
+`button`, `image` / `document` / `video` / `audio` / `sticker` (acknowledged,
+caption read), `location`. Anything else returns the menu.
+
+**Always responds `200`** once the signature checks out, including when
+processing fails — Meta redelivers on any other status, and a redelivery of an
+answered message would message the customer twice. Idempotency comes from the
+unique `messages.externalId` column instead: the second delivery of a `wamid`
+stops before the assistant is invoked.
+
+### What it produces
+
+| Outcome                   | Record written                                          |
+| ------------------------- | ------------------------------------------------------- |
+| Any message               | `Conversation` (`channel = WHATSAPP`) + `Message` rows   |
+| Completed quote capture   | `MarketingLead`, `source = WHATSAPP`, stage `NEW`        |
+| Completed admission capture | `Admission`, `source = WHATSAPP`, stage `INQUIRY`      |
+| "Talk to a human"         | `Ticket` (`OPEN`) + conversation marked `handedOff`      |
+| Every one of the above    | `Notification` for the owning team + `SystemLog` entry   |
+
+All of them appear in the admin console under CRM ▸ Leads / Admission Inquiries
+(filterable by source), Live Conversations, and Messaging ▸ WhatsApp Inbox.
+
+---
+
 ## GET `/api/health`
 
 Liveness + dependency probe for Docker/Nginx/monitoring.
@@ -282,3 +357,6 @@ Liveness + dependency probe for Docker/Nginx/monitoring.
   response because persistence failed.
 - Provider selection is server-side via `AI_PROVIDER`; clients never send model
   names or keys.
+- WhatsApp is rate limited to 20 inbound messages per minute per sender, and
+  replies are suppressed entirely when `WHATSAPP_AUTO_REPLY=false` (messages are
+  still recorded).

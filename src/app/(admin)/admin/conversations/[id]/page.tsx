@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { DepartmentTag, PageHeader } from "@/components/admin/ui";
+import { ChannelBadge, DepartmentTag, PageHeader } from "@/components/admin/ui";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/session";
 import { safeQuery } from "@/lib/admin/queries";
@@ -54,9 +54,12 @@ export default async function ConversationDetailPage({
           conversation.createdAt
         )} · language ${conversation.language}`}
         actions={
-          conversation.department ? (
-            <DepartmentTag department={conversation.department} />
-          ) : undefined
+          <div className="flex items-center gap-2">
+            <ChannelBadge value={conversation.channel} />
+            {conversation.department && (
+              <DepartmentTag department={conversation.department} />
+            )}
+          </div>
         }
       />
 
@@ -99,6 +102,28 @@ export default async function ConversationDetailPage({
         </Card>
 
         <div className="space-y-4">
+          {conversation.channel === "WHATSAPP" && conversation.contactPhone && (
+            <Card className="p-5">
+              <h2 className="mb-3 text-sm font-semibold">WhatsApp contact</h2>
+              <dl className="space-y-2 text-sm">
+                <Detail label="Name" value={conversation.contactName ?? "Not shared"} />
+                <Detail label="Number" value={conversation.contactPhone} />
+              </dl>
+              <a
+                href={`https://wa.me/${conversation.contactPhone.replace(/\D/g, "")}`}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-[#25D366] px-3 py-2 text-xs font-semibold text-white transition hover:opacity-90"
+              >
+                Reply on WhatsApp
+              </a>
+              <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+                Free-form replies are only possible within 24 hours of their last message.
+                After that WhatsApp requires an approved template.
+              </p>
+            </Card>
+          )}
+
           <Card className="p-5">
             <h2 className="mb-3 text-sm font-semibold">Outcome</h2>
             <dl className="space-y-2 text-sm">

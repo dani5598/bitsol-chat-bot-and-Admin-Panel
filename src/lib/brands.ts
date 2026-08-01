@@ -67,11 +67,14 @@ export interface BrandProfile {
 }
 
 /**
- * NOTE ON ACCURACY — the contact block below holds representative defaults so
- * the product is demo-ready out of the box. They are overridable at runtime
- * from Admin → Settings (`settings` table) and should be reviewed by BITSOL
- * before go-live. The assistant is explicitly instructed never to invent
- * contact details beyond what is supplied here.
+ * NOTE ON ACCURACY — the phone/WhatsApp number below is BITSOL's live business
+ * line (+92 312 0141581), shared by both businesses. If the Institute is given
+ * its own number, change it here. The remaining contact fields are still
+ * representative defaults and should be confirmed before go-live.
+ *
+ * All of it is overridable at runtime from Admin → Settings (`settings` table).
+ * The assistant is explicitly instructed never to invent contact details beyond
+ * what is supplied here.
  */
 export const BRANDS: Record<Department, BrandProfile> = {
   MARKETING: {
@@ -95,8 +98,8 @@ export const BRANDS: Record<Department, BrandProfile> = {
       accentName: "Electric Blue",
     },
     contact: {
-      phone: "+92 300 0000000",
-      whatsapp: "+92 300 0000000",
+      phone: "+92 312 0141581",
+      whatsapp: "+92 312 0141581",
       email: "info@bitsolmarketing.com",
       address: "BITSOL Marketing, Faisalabad",
       city: "Faisalabad, Pakistan",
@@ -121,8 +124,8 @@ export const BRANDS: Record<Department, BrandProfile> = {
       accentName: "Academy Emerald",
     },
     contact: {
-      phone: "+92 300 0000000",
-      whatsapp: "+92 300 0000000",
+      phone: "+92 312 0141581",
+      whatsapp: "+92 312 0141581",
       email: "admissions@bitsolinstitute.com",
       address: "BITSOL Institute of Digital Media & AI, Faisalabad",
       city: "Faisalabad, Pakistan",

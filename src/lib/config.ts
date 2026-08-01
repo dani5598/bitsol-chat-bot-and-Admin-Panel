@@ -151,6 +151,12 @@ export const config = {
     enabled: Boolean(env.WHATSAPP_PHONE_ID && env.WHATSAPP_TOKEN),
     /** Meta can reach the webhook: verification and signature checks are set. */
     webhookReady: Boolean(env.WHATSAPP_VERIFY_TOKEN && env.WHATSAPP_APP_SECRET),
+    /**
+     * The callback URL registered with Meta. `/webhook` is rewritten to
+     * `/api/whatsapp/webhook` in next.config.mjs — this is the short public
+     * form, and the single value the admin console tells you to paste.
+     */
+    webhookUrl: `${env.APP_URL.replace(/\/$/, "")}/webhook`,
   },
 
   maps: {

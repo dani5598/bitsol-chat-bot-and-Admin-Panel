@@ -10,6 +10,7 @@ import {
   MessageSquare,
   Server,
   Smartphone,
+  Webhook,
 } from "lucide-react";
 
 export const metadata = { title: "Integrations" };
@@ -52,12 +53,23 @@ export default async function IntegrationsPage() {
     },
     {
       icon: MessageSquare,
-      name: "WhatsApp Business API",
+      name: "WhatsApp — outbound",
       configured: config.whatsapp.enabled,
       detail: config.whatsapp.enabled
-        ? "Phone ID and token set"
+        ? `Sending via Graph ${config.whatsapp.apiVersion}${
+            config.whatsapp.autoReply ? "" : " · auto-reply is OFF"
+          }`
         : "Templates can be drafted; sending is disabled",
-      env: "WHATSAPP_PHONE_ID, WHATSAPP_TOKEN",
+      env: "WHATSAPP_PHONE_ID, WHATSAPP_TOKEN, WHATSAPP_API_VERSION, WHATSAPP_AUTO_REPLY",
+    },
+    {
+      icon: Webhook,
+      name: "WhatsApp — inbound webhook",
+      configured: config.whatsapp.webhookReady,
+      detail: config.whatsapp.webhookReady
+        ? "Verification token and signature secret set"
+        : "Inbound messages are rejected until both are set",
+      env: "WHATSAPP_VERIFY_TOKEN, WHATSAPP_APP_SECRET",
     },
     {
       icon: Mail,
@@ -130,6 +142,26 @@ export default async function IntegrationsPage() {
           </Card>
         ))}
       </div>
+
+      {/* The one value that has to be copied *out* of this app and into Meta. */}
+      <Card className="mt-6 p-5">
+        <div className="flex items-center gap-2">
+          <Webhook className="size-4 text-primary" />
+          <h2 className="text-sm font-semibold">WhatsApp webhook callback URL</h2>
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Paste this into Meta ▸ your app ▸ WhatsApp ▸ Configuration ▸ Webhook, together with
+          the value of <code>WHATSAPP_VERIFY_TOKEN</code>, then subscribe to the{" "}
+          <code>messages</code> field.
+        </p>
+        <p className="mt-3 break-all rounded-xl bg-secondary px-3 py-2 font-mono text-xs">
+          {config.whatsapp.webhookUrl}
+        </p>
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          Must be publicly reachable over HTTPS. In local development, expose it with a tunnel
+          (e.g. <code>ngrok http 3000</code>) and register the tunnel URL instead.
+        </p>
+      </Card>
     </>
   );
 }

@@ -15,6 +15,7 @@ import {
   Images,
   LayoutDashboard,
   LifeBuoy,
+  MessageCircle,
   MessagesSquare,
   Megaphone,
   Plug,
@@ -193,6 +194,12 @@ export const ADMIN_NAV: NavGroup[] = [
   {
     label: "Messaging",
     items: [
+      {
+        label: "WhatsApp Inbox",
+        href: "/admin/messaging/whatsapp",
+        icon: MessageCircle,
+        permission: "conversations.view",
+      },
       {
         label: "WhatsApp Templates",
         href: "/admin/messaging/templates",

@@ -1,15 +1,18 @@
 import Link from "next/link";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/session";
 import { safeQuery, scope } from "@/lib/admin/queries";
 import {
+  ChannelBadge,
   DataTable,
   DbNotice,
   DepartmentTag,
+  FilterChip,
   PageHeader,
   StatCard,
 } from "@/components/admin/ui";
-import { MessagesSquare, PhoneForwarded, Star } from "lucide-react";
+import { MessageCircle, MessagesSquare, PhoneForwarded, Star } from "lucide-react";
 import { formatDateTime, truncate } from "@/lib/utils";
 
 export const metadata = { title: "Live Conversations" };
@@ -21,11 +24,17 @@ export default async function ConversationsPage({
 }) {
   const session = await requireAdmin("/admin/conversations");
   const { filter } = await searchParams;
-  const where = { ...scope(session), ...(filter === "handoff" ? { handedOff: true } : {}) };
+
+  const filters: Record<string, Prisma.ConversationWhereInput> = {
+    handoff: { handedOff: true },
+    whatsapp: { channel: "WHATSAPP" },
+    web: { channel: "WEB" },
+  };
+  const where = { ...scope(session), ...(filters[filter ?? ""] ?? {}) };
 
   const { data, error } = await safeQuery(
     async () => {
-      const [conversations, total, handoffs, rated] = await Promise.all([
+      const [conversations, total, handoffs, whatsapp, rated] = await Promise.all([
         prisma.conversation.findMany({
           where,
           orderBy: { updatedAt: "desc" },
@@ -41,27 +50,35 @@ export default async function ConversationsPage({
         }),
         prisma.conversation.count({ where: scope(session) }),
         prisma.conversation.count({ where: { ...scope(session), handedOff: true } }),
+        prisma.conversation.count({ where: { ...scope(session), channel: "WHATSAPP" } }),
         prisma.conversation.aggregate({
           where: { ...scope(session), rating: { not: null } },
           _avg: { rating: true },
         }),
       ]);
-      return { conversations, total, handoffs, rating: rated._avg.rating ?? 0 };
+      return { conversations, total, handoffs, whatsapp, rating: rated._avg.rating ?? 0 };
     },
-    { conversations: [], total: 0, handoffs: 0, rating: 0 }
+    { conversations: [], total: 0, handoffs: 0, whatsapp: 0, rating: 0 }
   );
 
   return (
     <>
       <PageHeader
         title="Live Conversations"
-        description="Every conversation the assistant has handled, newest first. Handed-off chats are the ones waiting on a human."
+        description="Every conversation the assistant has handled across the web widget and WhatsApp, newest first. Handed-off chats are the ones waiting on a human."
       />
 
       {error && <DbNotice error={error} />}
 
-      <div className="mb-5 grid gap-3 sm:grid-cols-3">
+      <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Conversations" value={data.total} icon={MessagesSquare} />
+        <StatCard
+          label="On WhatsApp"
+          value={data.whatsapp}
+          hint="Inbound to the business number"
+          icon={MessageCircle}
+          href="/admin/conversations?filter=whatsapp"
+        />
         <StatCard
           label="Handed off"
           value={data.handoffs}
@@ -76,23 +93,23 @@ export default async function ConversationsPage({
         />
       </div>
 
-      <div className="mb-4 flex gap-2">
-        <Link
-          href="/admin/conversations"
-          className={`rounded-full border px-3 py-1.5 text-xs font-medium ${
-            filter !== "handoff" ? "border-primary bg-primary text-primary-foreground" : "bg-card"
-          }`}
-        >
-          All
-        </Link>
-        <Link
+      <div className="scroll-slim mb-4 flex gap-2 overflow-x-auto pb-1">
+        <FilterChip href="/admin/conversations" label="All" active={!filter} />
+        <FilterChip
+          href="/admin/conversations?filter=whatsapp"
+          label="🟢 WhatsApp"
+          active={filter === "whatsapp"}
+        />
+        <FilterChip
+          href="/admin/conversations?filter=web"
+          label="💬 Web chat"
+          active={filter === "web"}
+        />
+        <FilterChip
           href="/admin/conversations?filter=handoff"
-          className={`rounded-full border px-3 py-1.5 text-xs font-medium ${
-            filter === "handoff" ? "border-primary bg-primary text-primary-foreground" : "bg-card"
-          }`}
-        >
-          Needs a human
-        </Link>
+          label="Needs a human"
+          active={filter === "handoff"}
+        />
       </div>
 
       <DataTable
@@ -109,6 +126,20 @@ export default async function ConversationsPage({
               >
                 {row.reference}
               </Link>
+            ),
+          },
+          {
+            header: "Channel",
+            cell: (row) => (
+              <div className="space-y-1">
+                <ChannelBadge value={row.channel} />
+                {row.contactPhone && (
+                  <p className="text-[11px] text-muted-foreground">
+                    {row.contactName ? `${row.contactName} · ` : ""}
+                    {row.contactPhone}
+                  </p>
+                )}
+              </div>
             ),
           },
           {
@@ -145,6 +176,10 @@ export default async function ConversationsPage({
               row.handedOff ? (
                 <span className="rounded-full bg-amber-500/14 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:text-amber-400">
                   Handed off
+                </span>
+              ) : row.capture ? (
+                <span className="rounded-full bg-sky-500/12 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:text-sky-400">
+                  Filling form
                 </span>
               ) : (
                 <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px]">

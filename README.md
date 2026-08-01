@@ -31,6 +31,10 @@ information between the two.
 - 📝 In-chat workflow forms — quote request, consultation booking, admission
   inquiry, support ticket, career guidance — each issuing a real reference number
 - 🎙️ Voice input & voice responses, image/PDF attachment, human handoff with ticketing
+- 🟢 **The same assistant on WhatsApp** — Meta Cloud API webhook, tappable menus
+  and lists, one-question-at-a-time lead & admission capture, human handoff.
+  Same router, same knowledge bases, same reference numbers. See
+  [WhatsApp chatbot](#-whatsapp-chatbot).
 
 **Business logic**
 - 🏢 11 marketing services, each with overview · benefits · features · process ·
@@ -45,7 +49,11 @@ information between the two.
   services/courses, open tickets, upcoming meetings & batches, conversion rate,
   satisfaction and a live activity feed
 - CRM with **separate pipelines** — marketing leads and admission inquiries —
-  plus customers, students, notes, follow-ups and reminders
+  plus customers, students, notes, follow-ups and reminders. Every row carries
+  its **source**, so web-chat and WhatsApp leads land in the same board and can
+  be filtered apart
+- **WhatsApp Inbox** — every number that has messaged the business line, whether
+  the 24-hour reply window is still open, and the transcript it produced
 - Catalogue: services, projects, portfolio, courses, batches, faculty
 - Knowledge Base CMS with publish states, versioning and AI indexing
 - Support tickets, meetings, quotations, events, media & documents
@@ -167,6 +175,80 @@ Separation is enforced at three layers:
 
 ---
 
+## 🟢 WhatsApp chatbot
+
+The WhatsApp channel is the same assistant, not a second one. A message arriving
+on the business number goes through `planAssistantTurn()` exactly like a web
+message: same department router, same knowledge bases, same language detection.
+
+```
+Customer on WhatsApp
+   │
+   ▼
+POST /webhook               ── X-Hub-Signature-256 verified, else 401
+   │
+   ├─ Message id already seen?  → stop (Meta retries are harmless)
+   ├─ Contact upserted, thread resolved (24h window → same conversation)
+   │
+   ├─ Mid-capture?              → next form question   (capture.ts)
+   ├─ Tapped a menu button?     → department / quote / handoff
+   ├─ Asked for a human?        → ticket + team notification
+   ├─ Quote / admission intent? → start capture
+   └─ Otherwise                 → AI answer + quick-action buttons
+   │
+   ▼
+Lead or Admission written with source = WHATSAPP → visible in /admin/crm/*
+```
+
+**Why the capture is a state machine, not a prompt.** WhatsApp has no forms, so
+the eight fields the CRM needs are asked one message at a time and the progress
+is stored in `conversations.capture`. Every webhook delivery is a cold start, so
+the step index has to live in the database. Most steps are tappable buttons or
+lists — nobody types a budget range correctly in four languages. See
+[`src/lib/whatsapp/capture.ts`](src/lib/whatsapp/capture.ts).
+
+### Connecting a number
+
+1. In [Meta for Developers](https://developers.facebook.com/), create a Business
+   app and add the **WhatsApp** product.
+2. From **WhatsApp ▸ API Setup**, copy the **Phone number ID** into
+   `WHATSAPP_PHONE_ID`.
+3. Create a **System User** with the `whatsapp_business_messaging` permission and
+   generate a **permanent** token → `WHATSAPP_TOKEN`. (The 24-hour token on the
+   setup page is for testing only.)
+4. Copy the **App secret** from **App settings ▸ Basic** → `WHATSAPP_APP_SECRET`.
+   Every inbound webhook is HMAC-verified against it; without it the webhook
+   rejects all traffic, because the callback URL is public.
+5. Invent any random string for `WHATSAPP_VERIFY_TOKEN`.
+6. In **WhatsApp ▸ Configuration ▸ Webhook**, set the callback URL to
+   `https://your-domain.com/webhook`, paste the same verify token, and
+   **subscribe to the `messages` field**. Admin ▸ Integrations shows the exact
+   URL and the status of every credential.
+
+   `/webhook` is a rewrite of `/api/whatsapp/webhook` (see `next.config.mjs`), so
+   either path is valid — a rewrite rather than a redirect, because Meta does not
+   follow 3xx when delivering a webhook.
+
+Locally, expose the dev server first (`ngrok http 3000`) and register the tunnel
+URL — Meta only calls public HTTPS endpoints.
+
+Set `WHATSAPP_AUTO_REPLY=false` to keep the number connected while your team
+answers manually; inbound messages are still recorded and still appear in the
+console, the bot just stops replying.
+
+### Good to know
+
+- **The 24-hour window.** WhatsApp only allows free-form replies within 24 hours
+  of the customer's last message. After that an approved template is required —
+  which is what Messaging ▸ Templates and Broadcasts are for. The WhatsApp Inbox
+  shows which contacts are still inside the window.
+- **Long answers** are split across bubbles at paragraph boundaries, and the
+  assistant's markdown is converted to WhatsApp's `*bold*` / `_italic_`.
+- **`menu`** returns anyone to the business picker; **`stop`** opts them out of
+  broadcasts (they can still chat).
+
+---
+
 ## 📁 Project structure
 
 ```
@@ -182,6 +264,7 @@ Separation is enforced at three layers:
 │   │   ├── about/  page.tsx  layout.tsx  globals.css
 │   │   └── api/
 │   │       ├── chat/              # streaming chat (SSE) + routing
+│   │       ├── whatsapp/webhook/  # Meta Cloud API webhook (verify + receive)
 │   │       ├── leads/ admissions/ meetings/ tickets/
 │   │       ├── catalog/ search/ health/ auth/
 │   │       └── admin/             # record updates, CRM activities
@@ -197,6 +280,7 @@ Separation is enforced at three layers:
 │   │   ├── brands.ts              # the two business profiles
 │   │   ├── i18n.ts                # EN / UR / Roman UR / PA
 │   │   ├── ai/                    # router · retrieval · prompts · intents · providers
+│   │   ├── whatsapp/              # Cloud API client · parser · capture · handler
 │   │   ├── admin/queries.ts       # scoped, failure-tolerant data access
 │   │   └── auth.ts db.ts redis.ts config.ts notify.ts api.ts session.ts
 │   ├── middleware.ts              # admin console guard

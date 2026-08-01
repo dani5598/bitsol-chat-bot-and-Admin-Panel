@@ -47,6 +47,15 @@ enum Language {
   PA
 }
 
+/// Where a conversation is physically taking place. The assistant, the routing
+/// and both knowledge bases are identical across channels — only the transport
+/// and the way structured data is collected differ (the web chat opens a form,
+/// WhatsApp asks one question at a time).
+enum Channel {
+  WEB
+  WHATSAPP
+}
+
 /// Coarse access tier. Fine-grained rights live in Role/Permission.
 enum UserRole {
   GUEST
@@ -336,6 +345,8 @@ model RolePermission {
 model Conversation {
   id        String      @id @default(cuid())
   reference String      @unique
+  /// Which surface this thread arrived on — the web widget or WhatsApp.
+  channel   Channel     @default(WEB)
   /// Null until the visitor picks a business; set on the first routed turn.
   department Department?
   userId    String?
@@ -343,6 +354,13 @@ model Conversation {
   title     String?
   language  Language    @default(EN)
   summary   String?
+  /// WhatsApp sender (E.164 without `+`, as Meta reports it). Null on the web.
+  contactPhone String?
+  /// WhatsApp profile name, so the console shows a person rather than a number.
+  contactName  String?
+  /// In-progress slot filling for channels that have no forms. Shape:
+  /// `{ flow, step, answers, startedAt }` — see `lib/whatsapp/capture.ts`.
+  capture   Json?
   /// Set when a human takes over from the assistant.
   handedOff Boolean     @default(false)
   /// 1–5 rating captured by the chat satisfaction widget.
@@ -359,6 +377,7 @@ model Conversation {
   @@index([userId])
   @@index([department])
   @@index([createdAt])
+  @@index([channel, contactPhone, updatedAt])
   @@map("conversations")
 }
 
@@ -372,6 +391,10 @@ model Message {
   language       Language?
   tokens         Int?
   latencyMs      Int?
+  /// Provider message id (WhatsApp `wamid.…`). Unique, which is what makes
+  /// webhook redelivery idempotent: Meta retries until it sees a 200, and a
+  /// retry then fails the insert instead of answering the customer twice.
+  externalId     String?      @unique
   createdAt      DateTime     @default(now())
 
   @@index([conversationId])
@@ -971,6 +994,35 @@ model Announcement {
 
   @@index([isPublished])
   @@map("announcements")
+}
+
+/// A person who has messaged the WhatsApp business number.
+///
+/// Kept separate from `users` because a WhatsApp contact is not an account:
+/// it is a phone number with a profile name, which may later become a lead, an
+/// admission inquiry, both, or nothing at all.
+model WhatsappContact {
+  id             String      @id @default(cuid())
+  /// Meta's `wa_id` — E.164 digits with no leading `+`, e.g. `923001234567`.
+  waId           String      @unique
+  /// Same number in display form (`+923001234567`), used in the CRM.
+  phone          String
+  /// Name from the sender's WhatsApp profile, when they have set one.
+  profileName    String?
+  /// Business this contact last spoke to, so returning messages skip the menu.
+  department     Department?
+  lastInboundAt  DateTime?
+  lastOutboundAt DateTime?
+  /// True after the contact sends STOP. Blocks broadcasts, not replies.
+  optedOut       Boolean     @default(false)
+  /// Set by staff to make the assistant ignore a number entirely.
+  isBlocked      Boolean     @default(false)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([department])
+  @@index([lastInboundAt])
+  @@map("whatsapp_contacts")
 }
 
 model WhatsappTemplate {

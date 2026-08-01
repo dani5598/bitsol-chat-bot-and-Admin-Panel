@@ -1,10 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import type { AdmissionStage } from "@prisma/client";
+import type { AdmissionStage, LeadSource, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/session";
 import { safeQuery, sessionDepartment } from "@/lib/admin/queries";
-import { DataTable, DbNotice, PageHeader, StatusBadge } from "@/components/admin/ui";
+import {
+  DataTable,
+  DbNotice,
+  FilterChip,
+  PageHeader,
+  SourceBadge,
+  StatusBadge,
+} from "@/components/admin/ui";
 import { StatusSelect } from "@/components/admin/StatusSelect";
 import { formatDate, humanise } from "@/lib/utils";
 
@@ -15,25 +22,37 @@ const STAGES: AdmissionStage[] = [
   "FEE_PENDING", "ENROLLED", "DROPPED", "LOST",
 ];
 
+const SOURCES: LeadSource[] = [
+  "CHATBOT", "WHATSAPP", "WEBSITE", "REFERRAL", "WALK_IN", "SOCIAL", "PHONE", "OTHER",
+];
+
 export default async function AdmissionsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ stage?: string }>;
+  searchParams: Promise<{ stage?: string; source?: string }>;
 }) {
   const session = await requireAdmin("/admin/crm/admissions");
   // Marketing-scoped staff have no business in the admissions pipeline.
   if (sessionDepartment(session) === "MARKETING") notFound();
 
-  const { stage } = await searchParams;
+  const { stage, source } = await searchParams;
   const active = STAGES.includes(stage as AdmissionStage)
     ? (stage as AdmissionStage)
     : undefined;
+  const activeSource = SOURCES.includes(source as LeadSource)
+    ? (source as LeadSource)
+    : undefined;
+
+  const where: Prisma.AdmissionWhereInput = {
+    ...(active ? { stage: active } : {}),
+    ...(activeSource ? { source: activeSource } : {}),
+  };
 
   const { data, error } = await safeQuery(
     async () => {
-      const [admissions, counts] = await Promise.all([
+      const [admissions, stageCounts, sourceCounts] = await Promise.all([
         prisma.admission.findMany({
-          where: active ? { stage: active } : undefined,
+          where,
           orderBy: { createdAt: "desc" },
           take: 100,
           include: {
@@ -41,47 +60,90 @@ export default async function AdmissionsPage({
             course: { select: { name: true } },
           },
         }),
-        prisma.admission.groupBy({ by: ["stage"], _count: { _all: true } }),
+        prisma.admission.groupBy({
+          by: ["stage"],
+          _count: { _all: true },
+          where: activeSource ? { source: activeSource } : undefined,
+        }),
+        prisma.admission.groupBy({
+          by: ["source"],
+          _count: { _all: true },
+          where: active ? { stage: active } : undefined,
+        }),
       ]);
-      return { admissions, counts };
+      return { admissions, stageCounts, sourceCounts };
     },
     {
       admissions: [],
-      counts: [] as Array<{ stage: AdmissionStage; _count: { _all: number } }>,
+      stageCounts: [] as Array<{ stage: AdmissionStage; _count: { _all: number } }>,
+      sourceCounts: [] as Array<{ source: LeadSource; _count: { _all: number } }>,
     }
   );
 
-  const countFor = (value: AdmissionStage) =>
-    data.counts.find((c) => c.stage === value)?._count._all ?? 0;
-  const total = data.counts.reduce((sum, c) => sum + c._count._all, 0);
+  const countForStage = (value: AdmissionStage) =>
+    data.stageCounts.find((c) => c.stage === value)?._count._all ?? 0;
+  const countForSource = (value: LeadSource) =>
+    data.sourceCounts.find((c) => c.source === value)?._count._all ?? 0;
+  const total = data.stageCounts.reduce((sum, c) => sum + c._count._all, 0);
+  const sourceTotal = data.sourceCounts.reduce((sum, c) => sum + c._count._all, 0);
+
+  const url = (next: { stage?: AdmissionStage; source?: LeadSource }) => {
+    const params = new URLSearchParams();
+    const nextStage = "stage" in next ? next.stage : active;
+    const nextSource = "source" in next ? next.source : activeSource;
+    if (nextStage) params.set("stage", nextStage);
+    if (nextSource) params.set("source", nextSource);
+    const query = params.toString();
+    return query ? `/admin/crm/admissions?${query}` : "/admin/crm/admissions";
+  };
 
   return (
     <>
       <PageHeader
         title="Admission Inquiries"
         department="INSTITUTE"
-        description="Every prospective student captured by the assistant, walk-ins and referrals — moved through the BITSOL Institute admissions pipeline."
+        description="Every prospective student captured by the assistant, WhatsApp, walk-ins and referrals — moved through the BITSOL Institute admissions pipeline."
       />
 
       {error && <DbNotice error={error} />}
 
-      <div className="scroll-slim mb-4 flex gap-2 overflow-x-auto pb-1">
-        <FilterChip href="/admin/crm/admissions" label="All" count={total} active={!active} />
+      <div className="scroll-slim mb-3 flex gap-2 overflow-x-auto pb-1">
+        <FilterChip href={url({ stage: undefined })} label="All stages" count={total} active={!active} />
         {STAGES.map((value) => (
           <FilterChip
             key={value}
-            href={`/admin/crm/admissions?stage=${value}`}
+            href={url({ stage: value })}
             label={humanise(value)}
-            count={countFor(value)}
+            count={countForStage(value)}
             active={active === value}
           />
         ))}
       </div>
 
+      <div className="scroll-slim mb-4 flex gap-2 overflow-x-auto pb-1">
+        <FilterChip
+          href={url({ source: undefined })}
+          label="All sources"
+          count={sourceTotal}
+          active={!activeSource}
+        />
+        {SOURCES.filter((value) => countForSource(value) > 0 || activeSource === value).map(
+          (value) => (
+            <FilterChip
+              key={value}
+              href={url({ source: value })}
+              label={value === "WHATSAPP" ? "🟢 WhatsApp" : humanise(value)}
+              count={countForSource(value)}
+              active={activeSource === value}
+            />
+          )
+        )}
+      </div>
+
       <DataTable
         rows={data.admissions}
         rowKey={(row) => row.id}
-        empty="No admission inquiries in this stage yet."
+        empty="No admission inquiries match this filter yet."
         columns={[
           {
             header: "Reference",
@@ -102,7 +164,14 @@ export default async function AdmissionsPage({
                 {row.fatherName && (
                   <p className="text-xs text-muted-foreground">s/o {row.fatherName}</p>
                 )}
-                <p className="text-xs text-muted-foreground">{row.phone}</p>
+                <a
+                  href={`https://wa.me/${(row.whatsapp ?? row.phone).replace(/\D/g, "")}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs text-muted-foreground hover:text-primary hover:underline"
+                >
+                  {row.phone}
+                </a>
               </div>
             ),
           },
@@ -114,6 +183,10 @@ export default async function AdmissionsPage({
                 <p className="text-muted-foreground">{row.preferredBatch ?? "No batch preference"}</p>
               </div>
             ),
+          },
+          {
+            header: "Source",
+            cell: (row) => <SourceBadge value={row.source} />,
           },
           {
             header: "Background",
@@ -156,33 +229,5 @@ export default async function AdmissionsPage({
         ]}
       />
     </>
-  );
-}
-
-function FilterChip({
-  href,
-  label,
-  count,
-  active,
-}: {
-  href: string;
-  label: string;
-  count: number;
-  active: boolean;
-}) {
-  return (
-    <Link
-      href={href}
-      className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-        active
-          ? "border-primary bg-primary text-primary-foreground"
-          : "bg-card hover:bg-secondary"
-      }`}
-    >
-      {label}
-      <span className={active ? "ml-1.5 opacity-80" : "ml-1.5 text-muted-foreground"}>
-        {count}
-      </span>
-    </Link>
   );
 }

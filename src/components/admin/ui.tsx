@@ -148,6 +148,101 @@ export function StatusBadge({ value }: { value: string }) {
   );
 }
 
+// ------------------------------------------------------------ SourceBadge ---
+
+const SOURCE_TONES: Record<string, string> = {
+  WHATSAPP: "bg-[#25D366]/15 text-[#128C7E] dark:text-[#25D366]",
+  CHATBOT: "bg-primary/10 text-primary",
+};
+
+const SOURCE_ICONS: Record<string, string> = {
+  WHATSAPP: "🟢",
+  CHATBOT: "🤖",
+  WEBSITE: "🌐",
+  REFERRAL: "🤝",
+  WALK_IN: "🚶",
+  SOCIAL: "📣",
+  PHONE: "📞",
+  OTHER: "•",
+};
+
+/**
+ * Where a lead or admission inquiry came from.
+ *
+ * WhatsApp is given its own brand colour rather than another grey pill: the
+ * whole point of adding the channel is being able to see at a glance how much
+ * of the pipeline it is producing.
+ */
+export function SourceBadge({ value }: { value: string }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium",
+        SOURCE_TONES[value] ?? "bg-secondary text-secondary-foreground"
+      )}
+    >
+      <span aria-hidden>{SOURCE_ICONS[value] ?? "•"}</span>
+      {humanise(value)}
+    </span>
+  );
+}
+
+/** Which surface a conversation arrived on — the web widget or WhatsApp. */
+export function ChannelBadge({ value }: { value: "WEB" | "WHATSAPP" }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium",
+        value === "WHATSAPP"
+          ? "bg-[#25D366]/15 text-[#128C7E] dark:text-[#25D366]"
+          : "bg-secondary text-secondary-foreground"
+      )}
+    >
+      <span aria-hidden>{value === "WHATSAPP" ? "🟢" : "💬"}</span>
+      {value === "WHATSAPP" ? "WhatsApp" : "Web chat"}
+    </span>
+  );
+}
+
+// ----------------------------------------------------------------- Filters --
+
+/**
+ * Pill used by every list page's filter row.
+ *
+ * Lives here because leads, admissions and conversations each grew their own
+ * copy; a shared one keeps a stage chip and a source chip visually identical.
+ */
+export function FilterChip({
+  href,
+  label,
+  count,
+  active,
+}: {
+  href: string;
+  label: string;
+  count?: number;
+  active: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className={cn(
+        "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition",
+        active
+          ? "border-primary bg-primary text-primary-foreground"
+          : "bg-card hover:bg-secondary"
+      )}
+    >
+      {label}
+      {count != null && (
+        <span className={active ? "ml-1.5 opacity-80" : "ml-1.5 text-muted-foreground"}>
+          {count}
+        </span>
+      )}
+    </Link>
+  );
+}
+
 // -------------------------------------------------------------- DataTable ---
 
 export interface Column<T> {

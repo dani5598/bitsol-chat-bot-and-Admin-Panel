@@ -540,7 +540,7 @@ async function seedSettings() {
       department: "MARKETING",
       value: {
         name: "BITSOL Marketing",
-        phone: "+92 300 0000000",
+        phone: "+92 312 0141581",
         email: "info@bitsolmarketing.com",
         address: "Faisalabad, Pakistan",
         hours: "Mon–Sat, 10:00 AM – 7:00 PM",
@@ -553,7 +553,7 @@ async function seedSettings() {
       department: "INSTITUTE",
       value: {
         name: "BITSOL Institute of Digital Media & Artificial Intelligence",
-        phone: "+92 300 0000000",
+        phone: "+92 312 0141581",
         email: "admissions@bitsolinstitute.com",
         address: "Faisalabad, Pakistan",
         hours: "Mon–Sat, 9:00 AM – 8:00 PM",
