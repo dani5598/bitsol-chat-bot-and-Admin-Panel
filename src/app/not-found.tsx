@@ -1,49 +1,99 @@
-import Link from "next/link";
-import { Bot, Home, MessagesSquare } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { BRANDING } from "@/lib/branding";
-
 /**
  * App Router 404.
  *
  * Defining this explicitly matters beyond aesthetics: without it, `next build`
  * can fall back to the pages-router error document while prerendering /404,
  * which fails the build with "<Html> should not be imported outside of
- * pages/_document" — notably when NODE_ENV is a non-standard value, as on some
- * shared hosts.
+ * pages/_document" — an error that names an import this project does not have,
+ * and hides whatever actually crashed.
+ *
+ * It is deliberately **import-free**, for the same reason `global-error.tsx`
+ * is. This is one of only two pages Next prerenders before anything else, and
+ * it runs in a build worker with no environment and no browser. Anything it
+ * pulls in — a component library, an icon set, a module that reads config —
+ * becomes a way for the build to die at page 0 of 12 with that misleading
+ * message. A 404 page is not worth that risk, so it renders plain markup with
+ * inline styles and no dependencies at all.
+ *
+ * The gradient is hard-coded rather than read from the brand registry for the
+ * same reason. Keep it that way.
  */
 export default function NotFound() {
   return (
-    <main className="brand-gradient grid min-h-dvh place-items-center p-6 text-white">
-      <div className="w-full max-w-md text-center">
-        <span className="mx-auto mb-6 grid size-16 place-items-center rounded-2xl bg-white/10 ring-1 ring-white/25 backdrop-blur">
-          <Bot className="size-8" />
-        </span>
-
-        <p className="text-6xl font-bold tracking-tight">404</p>
-        <h1 className="mt-3 text-xl font-semibold">This page doesn&apos;t exist</h1>
-        <p className="mt-2 text-sm text-white/75">
+    <main
+      style={{
+        minHeight: "100dvh",
+        display: "grid",
+        placeItems: "center",
+        padding: "1.5rem",
+        background: "linear-gradient(160deg, #0b1d5b, #123a8a 55%, #0f766e)",
+        color: "white",
+        fontFamily:
+          'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+      }}
+    >
+      <div style={{ width: "100%", maxWidth: "28rem", textAlign: "center" }}>
+        <p style={{ fontSize: "3.75rem", fontWeight: 700, margin: 0, lineHeight: 1 }}>
+          404
+        </p>
+        <h1 style={{ marginTop: "0.75rem", fontSize: "1.25rem", fontWeight: 600 }}>
+          This page doesn&apos;t exist
+        </h1>
+        <p
+          style={{
+            marginTop: "0.5rem",
+            fontSize: "0.875rem",
+            lineHeight: 1.6,
+            color: "rgba(255,255,255,0.75)",
+          }}
+        >
           The link may be out of date. The assistant is still here and happy to help
           with either BITSOL Marketing or BITSOL Institute.
         </p>
 
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <Link href="/chat">
-            <Button className="gap-2 bg-white text-primary hover:bg-white/90">
-              <MessagesSquare className="size-4" /> Open the assistant
-            </Button>
-          </Link>
-          <Link href="/">
-            <Button
-              variant="outline"
-              className="gap-2 border-white/30 bg-white/5 text-white hover:bg-white/15 hover:text-white"
-            >
-              <Home className="size-4" /> Home
-            </Button>
-          </Link>
+        <div
+          style={{
+            marginTop: "2rem",
+            display: "flex",
+            flexWrap: "wrap",
+            gap: "0.75rem",
+            justifyContent: "center",
+          }}
+        >
+          <a
+            href="/chat"
+            style={{
+              padding: "0.625rem 1.25rem",
+              borderRadius: "9999px",
+              background: "white",
+              color: "#0b1d5b",
+              fontSize: "0.875rem",
+              fontWeight: 600,
+              textDecoration: "none",
+            }}
+          >
+            Open the assistant
+          </a>
+          <a
+            href="/"
+            style={{
+              padding: "0.625rem 1.25rem",
+              borderRadius: "9999px",
+              border: "1px solid rgba(255,255,255,0.3)",
+              background: "rgba(255,255,255,0.05)",
+              color: "white",
+              fontSize: "0.875rem",
+              fontWeight: 500,
+              textDecoration: "none",
+            }}
+          >
+            Home
+          </a>
         </div>
 
-        <p className="mt-10 text-[11px] text-white/50">{BRANDING.product.name}</p>
+        <p style={{ marginTop: "2.5rem", fontSize: "0.6875rem", color: "rgba(255,255,255,0.5)" }}>
+          BITSOL AI Assistant
+        </p>
       </div>
     </main>
   );
