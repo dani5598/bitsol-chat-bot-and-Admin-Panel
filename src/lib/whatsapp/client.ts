@@ -264,6 +264,94 @@ export async function markAsRead(messageId: string): Promise<void> {
   await post({ status: "read", message_id: messageId });
 }
 
+// ------------------------------------------------------- Connection check ---
+
+export interface ConnectionCheck {
+  ok: boolean;
+  /** One line, written for whoever is staring at the admin console. */
+  detail: string;
+  /** Present on success — proof of which number the credentials actually open. */
+  number?: string;
+  verifiedName?: string;
+  qualityRating?: string;
+  /** Present on failure — Meta's own error code, worth quoting in a support thread. */
+  code?: number;
+}
+
+/**
+ * Ask Meta, from this server, whether the configured credentials work.
+ *
+ * The value is in *where* it runs. A token can be verified from a laptop and
+ * still fail in production — because the panel holds a different value, or
+ * because the host cannot reach Meta at all. This distinguishes those cases
+ * without waiting for a customer to message and then reading the logs.
+ *
+ * Read-only: it fetches the phone number's own metadata and sends nothing.
+ */
+export async function checkConnection(): Promise<ConnectionCheck> {
+  if (!config.whatsapp.phoneId || !config.whatsapp.token) {
+    return {
+      ok: false,
+      detail: "WHATSAPP_PHONE_ID or WHATSAPP_TOKEN is not set on this server.",
+    };
+  }
+
+  try {
+    const response = await fetch(
+      `${GRAPH_HOST}/${config.whatsapp.apiVersion}/${config.whatsapp.phoneId}` +
+        `?fields=display_phone_number,verified_name,quality_rating,status`,
+      {
+        headers: { Authorization: `Bearer ${config.whatsapp.token}` },
+        signal: AbortSignal.timeout(8_000),
+        cache: "no-store",
+      }
+    );
+
+    const body = (await response.json().catch(() => null)) as
+      | {
+          display_phone_number?: string;
+          verified_name?: string;
+          quality_rating?: string;
+          status?: string;
+          error?: { message?: string; code?: number };
+        }
+      | null;
+
+    if (!response.ok) {
+      const code = body?.error?.code;
+      return {
+        ok: false,
+        code,
+        detail:
+          code === 190
+            ? "The access token is invalid or expired. Re-paste a permanent System User token."
+            : code === 100
+              ? "Meta rejected the phone number ID. Check WHATSAPP_PHONE_ID."
+              : body?.error?.message ?? `Meta returned HTTP ${response.status}.`,
+      };
+    }
+
+    return {
+      ok: true,
+      detail: `Connected as ${body?.verified_name ?? "this business"} · status ${body?.status ?? "unknown"}`,
+      number: body?.display_phone_number,
+      verifiedName: body?.verified_name,
+      qualityRating: body?.quality_rating,
+    };
+  } catch (error) {
+    const raw = error instanceof Error ? error.message : String(error);
+    return {
+      ok: false,
+      detail:
+        raw === "fetch failed" || /ENOTFOUND|ECONNREFUSED|EAI_AGAIN/.test(raw)
+          ? `This server cannot reach graph.facebook.com (${raw}). Outbound HTTPS is being blocked.`
+          : /timed? ?out|aborted/i.test(raw)
+            ? "Timed out reaching graph.facebook.com after 8s."
+            : raw,
+    };
+  }
+}
+
 // ------------------------------------------------------------- Signature ----
 
 /**

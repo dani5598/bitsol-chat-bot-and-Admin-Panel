@@ -186,6 +186,18 @@ ai.bitsolmarketing.com
 3. **Environment variables** — set them in the Node.js app panel, not in a
    committed file. At minimum: `DATABASE_URL`, `JWT_SECRET`, `AI_PROVIDER`,
    the matching API key, `AI_MODEL`, `APP_URL`, `NEXT_PUBLIC_APP_URL`.
+
+   > **Do not set `NODE_ENV=production` in the panel.** npm omits
+   > devDependencies whenever `NODE_ENV=production`, and the panel applies its
+   > variables to the install step too — so `npm ci` silently skips
+   > `tailwindcss`, `postcss`, `typescript` and the `prisma` CLI, all of which
+   > `next build` needs. The install reports success and the build then fails
+   > on a missing Tailwind plugin.
+   >
+   > It is unnecessary anyway: `scripts/build.mjs` pins `NODE_ENV=production`
+   > for the build, and `next start` sets it for the running server. The
+   > committed `.npmrc` (`include=dev`) defends against this even if the
+   > variable is set, but the simplest thing is to leave it out.
 4. **Build.** Run `npm ci && npx prisma generate && npm run build` in the app's
    shell. Shared plans are tight on memory, so set this first:
 
@@ -210,6 +222,13 @@ ai.bitsolmarketing.com
 ### Known constraints
 
 ### Debugging a failed build
+
+> **`Cannot find module 'tailwindcss'`** (or `typescript`, `postcss`, `prisma`)
+>
+> devDependencies were skipped, because `NODE_ENV=production` was set during
+> `npm ci`. Remove that variable from the panel and reinstall, or run
+> `npm ci --include=dev`. The committed `.npmrc` should prevent it; if the host
+> ignores project `.npmrc`, use the flag.
 
 > **`<Html> should not be imported outside of pages/_document`**
 >

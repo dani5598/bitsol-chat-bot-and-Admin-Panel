@@ -13,7 +13,10 @@ import {
   Webhook,
 } from "lucide-react";
 
+import { checkConnection } from "@/lib/whatsapp/client";
+
 export const metadata = { title: "Integrations" };
+export const dynamic = "force-dynamic";
 
 /**
  * Integration status board.
@@ -24,6 +27,13 @@ export const metadata = { title: "Integrations" };
  */
 export default async function IntegrationsPage() {
   await requireAdmin("/admin/integrations");
+
+  // Asked of Meta by this server, on every render. Verifying a token from a
+  // laptop proves nothing about production: the panel may hold a different
+  // value, or the host may not reach Meta at all. This answers both.
+  const whatsapp = config.whatsapp.enabled
+    ? await checkConnection()
+    : { ok: false, detail: "Not configured on this server." };
 
   const integrations = [
     {
@@ -54,12 +64,12 @@ export default async function IntegrationsPage() {
     {
       icon: MessageSquare,
       name: "WhatsApp — outbound",
-      configured: config.whatsapp.enabled,
-      detail: config.whatsapp.enabled
-        ? `Sending via Graph ${config.whatsapp.apiVersion}${
-            config.whatsapp.autoReply ? "" : " · auto-reply is OFF"
-          }`
-        : "Templates can be drafted; sending is disabled",
+      // Green here means Meta answered this server, not merely that a value is
+      // present. A wrong token is the difference between the two.
+      configured: whatsapp.ok,
+      detail: whatsapp.ok
+        ? `${whatsapp.detail}${config.whatsapp.autoReply ? "" : " · auto-reply is OFF"}`
+        : whatsapp.detail,
       env: "WHATSAPP_PHONE_ID, WHATSAPP_TOKEN, WHATSAPP_API_VERSION, WHATSAPP_AUTO_REPLY",
     },
     {
