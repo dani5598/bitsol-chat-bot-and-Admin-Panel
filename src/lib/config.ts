@@ -15,8 +15,25 @@ const bool = (def: boolean) =>
 
 const optional = z.string().optional();
 
+/**
+ * Normalise NODE_ENV instead of rejecting it.
+ *
+ * Managed hosts do not always set a value Next.js considers standard — some
+ * shared platforms use "prod", "staging" or leave it blank. Throwing on those
+ * takes the whole site down for a label mismatch, so anything unrecognised is
+ * treated as production: the safe assumption for a deployed app, since it is
+ * the stricter of the two modes (secure cookies, no dev affordances).
+ */
+const nodeEnv = z.preprocess((value) => {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (!raw) return "development";
+  if (raw === "development" || raw === "dev") return "development";
+  if (raw === "test") return "test";
+  return "production";
+}, z.enum(["development", "test", "production"]));
+
 const schema = z.object({
-  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  NODE_ENV: nodeEnv.default("development"),
   APP_NAME: z.string().default("BITSOL AI Assistant"),
   APP_URL: z.string().default("http://localhost:3000"),
 
@@ -47,8 +64,18 @@ const schema = z.object({
   SMS_API_KEY: optional,
   SMS_SENDER_ID: z.string().default("BITSOL"),
 
+  // --- WhatsApp Business Cloud API (Meta) ----------------------------------
+  /** Phone number ID of the business number (Meta → WhatsApp → API Setup). */
   WHATSAPP_PHONE_ID: optional,
+  /** Permanent system-user access token with `whatsapp_business_messaging`. */
   WHATSAPP_TOKEN: optional,
+  /** Shared secret typed into Meta's webhook form; echoed back on GET verify. */
+  WHATSAPP_VERIFY_TOKEN: optional,
+  /** Meta app secret, used to verify the `X-Hub-Signature-256` on every POST. */
+  WHATSAPP_APP_SECRET: optional,
+  WHATSAPP_API_VERSION: z.string().default("v21.0"),
+  /** Set false to keep the number connected but stop the bot from replying. */
+  WHATSAPP_AUTO_REPLY: bool(true),
 
   GOOGLE_MAPS_API_KEY: optional,
 
@@ -116,7 +143,14 @@ export const config = {
   whatsapp: {
     phoneId: env.WHATSAPP_PHONE_ID,
     token: env.WHATSAPP_TOKEN,
+    verifyToken: env.WHATSAPP_VERIFY_TOKEN,
+    appSecret: env.WHATSAPP_APP_SECRET,
+    apiVersion: env.WHATSAPP_API_VERSION,
+    autoReply: env.WHATSAPP_AUTO_REPLY,
+    /** Outbound sending is possible (templates, broadcasts, bot replies). */
     enabled: Boolean(env.WHATSAPP_PHONE_ID && env.WHATSAPP_TOKEN),
+    /** Meta can reach the webhook: verification and signature checks are set. */
+    webhookReady: Boolean(env.WHATSAPP_VERIFY_TOKEN && env.WHATSAPP_APP_SECRET),
   },
 
   maps: {
