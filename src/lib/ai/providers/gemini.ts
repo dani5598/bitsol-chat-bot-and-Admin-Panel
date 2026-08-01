@@ -21,7 +21,7 @@ export function createGeminiProvider(): AIProvider {
       const model = config.ai.model || "gemini-2.0-flash";
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
         model
-      )}:streamGenerateContent?alt=sse&key=${apiKey}`;
+      )}:streamGenerateContent?alt=sse`;
 
       const body = {
         systemInstruction: { parts: [{ text: system }] },
@@ -34,7 +34,12 @@ export function createGeminiProvider(): AIProvider {
 
       const res = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          // Header rather than a `key=` query parameter: a URL-embedded key
+          // leaks into access logs, proxy logs and any thrown error string.
+          "x-goog-api-key": apiKey,
+        },
         body: JSON.stringify(body),
       });
 
@@ -43,9 +48,12 @@ export function createGeminiProvider(): AIProvider {
         throw new Error(`Gemini error (${res.status}): ${detail.slice(0, 300)}`);
       }
 
-      yield* parseSSE(
-        res.body,
-        (json) => json?.candidates?.[0]?.content?.parts?.[0]?.text ?? ""
+      yield* parseSSE(res.body, (json) =>
+        // Gemini may split a single chunk across several parts; taking only
+        // parts[0] silently drops text mid-answer.
+        (json?.candidates?.[0]?.content?.parts ?? [])
+          .map((p: { text?: string }) => p?.text ?? "")
+          .join("")
       );
     },
   };
