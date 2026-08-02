@@ -20,6 +20,11 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+# Opts this build into `output: "standalone"` (see next.config.mjs). Only Docker
+# wants it: the runner stage below copies .next/standalone/server.js. A managed
+# host that runs `next start` must NOT get a standalone build, because Next
+# refuses to serve one that way.
+ENV DOCKER_BUILD=1
 RUN npx prisma generate && npm run build
 
 # ---- 3. Runner -------------------------------------------------------------

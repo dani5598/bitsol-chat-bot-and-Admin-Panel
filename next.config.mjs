@@ -12,11 +12,28 @@
  */
 const lowMemory = /^(1|true|yes)$/i.test(process.env.LOW_MEMORY_BUILD ?? "");
 
+/**
+ * Standalone output exists for Docker: it emits `.next/standalone/server.js`
+ * with its own trimmed node_modules, which the Dockerfile copies into a lean
+ * runtime image alongside `.next/static` and `public`.
+ *
+ * It must NOT be produced for a platform that starts the app with `next start`
+ * — Next refuses the combination outright:
+ *
+ *   ⚠ "next start" does not work with "output: standalone" configuration.
+ *     Use "node .next/standalone/server.js" instead.
+ *
+ * A managed host running the default start command therefore gets a build it
+ * cannot serve, and the app never comes up. So standalone is opt-in, set by the
+ * Dockerfile, and every other build is a plain Next build that `next start`
+ * serves normally.
+ */
+const standalone = /^(1|true|yes)$/i.test(process.env.DOCKER_BUILD ?? "");
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // Standalone output produces a lean, self-contained server for Docker.
-  output: "standalone",
+  ...(standalone ? { output: "standalone" } : {}),
   poweredByHeader: false,
   ...(lowMemory
     ? {
