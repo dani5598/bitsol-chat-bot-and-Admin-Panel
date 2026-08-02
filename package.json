@@ -22,9 +22,14 @@
   "prisma": {
     "seed": "tsx prisma/seed.ts"
   },
+  "//dependencies": "Anything `next build` needs lives here, not in devDependencies. npm omits devDependencies whenever NODE_ENV=production, and hosting panels apply that variable to the install step as well as the running app — which produces an install that reports success followed by a build that dies on a missing Tailwind plugin. Since this project is built on the host it is deployed to, its build tools are production dependencies in practice. The cost is disk in node_modules; the alternative is a deploy that fails depending on one environment variable.",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.68.0",
     "@prisma/client": "^6.14.0",
+    "@types/node": "^22.15.0",
+    "@types/react": "19.1.0",
+    "@types/react-dom": "19.1.0",
+    "autoprefixer": "^10.4.21",
     "bcryptjs": "^3.0.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -33,21 +38,17 @@
     "jose": "^6.1.0",
     "lucide-react": "^0.544.0",
     "next": "^15.5.21",
+    "postcss": "^8.5.6",
+    "prisma": "^6.14.0",
     "react": "19.1.1",
     "react-dom": "19.1.1",
     "tailwind-merge": "^3.3.1",
+    "tailwindcss": "^3.4.17",
+    "tailwindcss-animate": "^1.0.7",
+    "typescript": "^5.9.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@types/node": "^22.15.0",
-    "@types/react": "19.1.0",
-    "@types/react-dom": "19.1.0",
-    "autoprefixer": "^10.4.21",
-    "postcss": "^8.5.6",
-    "prisma": "^6.14.0",
-    "tailwindcss": "^3.4.17",
-    "tailwindcss-animate": "^1.0.7",
-    "tsx": "^4.20.0",
-    "typescript": "^5.9.0"
+    "tsx": "^4.20.0"
   }
 }
